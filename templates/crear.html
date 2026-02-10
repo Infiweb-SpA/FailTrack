@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-lg mx-auto bg-white p-8 rounded-lg shadow-md">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">Registrar Nueva Máquina</h2>
+    <form method="POST" class="space-y-4">
+        <div>
+            <label class="block text-sm font-bold text-gray-700">Nombre de la Máquina / Insumo</label>
+            <input type="text" name="nombre" class="w-full p-2 border rounded" required>
+        </div>
+        <div>
+            <label class="block text-sm font-bold text-gray-700">Código (4 dígitos)</label>
+            <input type="text" name="codigo" maxlength="4" pattern="\d{4}" placeholder="Ej: 1001" class="w-full p-2 border rounded" required>
+        </div>
+        <div>
+            <label class="block text-sm font-bold text-gray-700">Descripción</label>
+            <textarea name="descripcion" class="w-full p-2 border rounded"></textarea>
+        </div>
+        <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700">
+            Guardar y Generar QR
+        </button>
+    </form>
+</div>
+{% endblock %}

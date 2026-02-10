@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Importamos la librería de escaneo QR -->
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+<div class="flex flex-col items-center justify-center min-h-[60vh]">
+    <h1 class="text-4xl font-bold text-blue-800 mb-8">Rastreador de Fallas</h1>
+    
+    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+        
+        <!-- SECCIÓN DE CÁMARA (Oculta por defecto) -->
+        <div id="qr-reader-container" class="hidden mb-6">
+            <div id="reader" class="w-full rounded-lg overflow-hidden border-2 border-blue-500"></div>
+            <button onclick="detenerCamara()" class="mt-2 text-red-600 text-sm hover:underline w-full text-center">
+                Cancelar / Cerrar Cámara
+            </button>
+        </div>
+
+        <!-- BOTÓN PARA ABRIR CÁMARA -->
+        <button id="btn-scan" onclick="iniciarEscaner()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition mb-6 flex items-center justify-center gap-2">
+            <i class="fa-solid fa-camera"></i> Escanear QR con Cámara
+        </button>
+
+        <div class="relative flex py-2 items-center">
+            <div class="flex-grow border-t border-gray-300"></div>
+            <span class="flex-shrink mx-4 text-gray-400">O ingresa manual</span>
+            <div class="flex-grow border-t border-gray-300"></div>
+        </div>
+
+        <!-- FORMULARIO MANUAL (Igual que antes) -->
+        <form action="/buscar" method="POST" class="space-y-4 mt-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2">
+                Código de 4 Dígitos
+            </label>
+            <input 
+                type="text" 
+                id="input-codigo"
+                name="codigo" 
+                maxlength="4" 
+                placeholder="Ej: 1001" 
+                class="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-2xl tracking-widest"
+                required
+            >
+            <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition">
+                <i class="fa-solid fa-search"></i> Buscar
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    let html5QrcodeScanner;
+
+    function iniciarEscaner() {
+        // Mostrar el contenedor de la cámara y ocultar el botón de inicio
+        document.getElementById('qr-reader-container').classList.remove('hidden');
+        document.getElementById('btn-scan').classList.add('hidden');
+
+        html5QrcodeScanner = new Html5Qrcode("reader");
+        
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+        
+        // Preferir la cámara trasera (environment)
+        html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+        .catch(err => {
+            console.error("Error al iniciar la cámara", err);
+            alert("Error al iniciar la cámara. Asegúrese de dar permisos.");
+            detenerCamara();
+        });
+    }
+
+    function detenerCamara() {
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.stop().then(() => {
+                html5QrcodeScanner.clear();
+                // Restaurar la vista original
+                document.getElementById('qr-reader-container').classList.add('hidden');
+                document.getElementById('btn-scan').classList.remove('hidden');
+            }).catch(err => {
+                console.error("Error al detener", err);
+            });
+        } else {
+             document.getElementById('qr-reader-container').classList.add('hidden');
+             document.getElementById('btn-scan').classList.remove('hidden');
+        }
+    }
+
+        function onScanSuccess(decodedText, decodedResult) {
+        // Detener la cámara una vez leído
+        html5QrcodeScanner.stop().then(() => {
+            html5QrcodeScanner.clear();
+            document.getElementById('qr-reader-container').classList.add('hidden');
+            document.getElementById('btn-scan').classList.remove('hidden');
+            
+            console.log(`Texto escaneado: ${decodedText}`);
+
+            // LOGICA INTELIGENTE:
+            let codigoMaquina = decodedText;
+
+            // 1. Si el QR es una URL larga (ej: http://127.0.0.1:5000/maquina/1001)
+            // Vamos a "limpiarlo" para quedarnos solo con el "1001"
+            if (decodedText.includes('/maquina/')) {
+                // Dividimos el texto en dos partes usando "/maquina/" como separador
+                const partes = decodedText.split('/maquina/');
+                // Nos quedamos con la parte final (el código)
+                if (partes.length > 1) {
+                    codigoMaquina = partes[1];
+                }
+            }
+
+            // 2. Redirección RELATIVA
+            // Al usar solo "/maquina/" + codigo, el navegador usará automáticamente
+            // el dominio en el que estás navegando actualmente (sea localhost, ngrok o vscode)
+            window.location.href = "/maquina/" + codigoMaquina;
+            
+        }).catch(err => {
+            console.error("Error al detener el scanner", err);
+        });
+    }
+
+    function onScanFailure(error) {
+        // Fallo puntual de lectura (pasa muchas veces por segundo buscando QR), no hacer nada
+        // console.warn(`Code scan error = ${error}`);
+    }
+</script>
+{% endblock %}
