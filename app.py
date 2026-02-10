@@ -39,20 +39,22 @@ class Comentario(db.Model):
     falla_id = db.Column(db.Integer, db.ForeignKey('falla.id'), nullable=False)
 
 # --- HELPER PARA QR ---
-def generar_qr(codigo):
-    # Generamos una ruta relativa. Así funciona en localhost, ngrok o VS Code
-    # El escáner entenderá que debe ir a /maquina/CODIGO dentro del dominio actual
-    data = f"/maquina/{codigo}"
+def generar_qr_con_url(codigo, base_url):
+    # Aseguramos que no haya barras dobles y creamos el link
+    link_final = f"{base_url.rstrip('/')}/maquina/{codigo}"
     
-    qr = qrcode.make(data)
+    qr = qrcode.QRCode(box_size=10, border=4)
+    qr.add_data(link_final)
+    qr.make(fit=True)
     
-    # Crear carpeta si no existe
-    ruta_carpeta = os.path.join('static', 'qrcodes')
-    if not os.path.exists(ruta_carpeta):
-        os.makedirs(ruta_carpeta)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Ruta de guardado
+    ruta_dir = os.path.join('static', 'qrcodes')
+    if not os.path.exists(ruta_dir):
+        os.makedirs(ruta_dir)
         
-    ruta_archivo = os.path.join(ruta_carpeta, f'{codigo}.png')
-    qr.save(ruta_archivo)
+    img.save(os.path.join(ruta_dir, f'{codigo}.png'))
 
 # --- RUTAS ---
 
@@ -113,15 +115,29 @@ def crear_maquina():
         codigo = request.form.get('codigo')
         desc = request.form.get('descripcion')
         
+        # Validación de existencia
         existe = Maquina.query.filter_by(codigo=codigo).first()
         if existe:
-            flash('Ese código ya existe', 'error')
-        else:
+            flash(f'El código {codigo} ya existe', 'error')
+            return redirect(url_for('crear_maquina'))
+        
+        try:
+            # Guardar en BD
             nueva = Maquina(nombre=nombre, codigo=codigo, descripcion=desc)
             db.session.add(nueva)
             db.session.commit()
-            generar_qr(codigo)
+
+            # --- FUERZA AQUÍ TU URL DE DEV TUNNELS ---
+            # Si request.host_url da localhost, ponemos la URL fija:
+            url_publica = "https://m1g85s7v-5000.brs.devtunnels.ms"
+            
+            generar_qr_con_url(codigo, url_publica)
+            
+            flash('Máquina y QR creados con éxito', 'success')
             return redirect(url_for('ver_maquina', codigo=codigo))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error: {str(e)}', 'error')
             
     return render_template('crear.html')
 
