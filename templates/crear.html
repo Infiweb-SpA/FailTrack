@@ -1,23 +1,33 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-lg mx-auto bg-white p-8 rounded-lg shadow-md">
-    <h2 class="text-2xl font-bold mb-6 text-gray-800">Registrar Nueva Máquina</h2>
-    <form method="POST" class="space-y-4">
-        <div>
-            <label class="block text-sm font-bold text-gray-700">Nombre de la Máquina / Insumo</label>
-            <input type="text" name="nombre" class="w-full p-2 border rounded" required>
+<div class="max-w-lg mx-auto bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+    <div class="mb-6 text-center">
+        <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600 text-2xl">
+            <i class="fa-solid fa-plus"></i>
         </div>
+        <h2 class="text-2xl font-bold text-gray-800">Registrar Nueva Máquina</h2>
+        <p class="text-gray-500 text-sm">Ingresa los datos para generar el código QR</p>
+    </div>
+    
+    <form method="POST" class="space-y-5">
         <div>
-            <label class="block text-sm font-bold text-gray-700">Código (4 dígitos)</label>
-            <input type="text" name="codigo" maxlength="4" pattern="\d{4}" placeholder="Ej: 1001" class="w-full p-2 border rounded" required>
+            <label class="block text-sm font-bold text-gray-700 mb-1">Nombre de la Máquina</label>
+            <input type="text" name="nombre" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-200 outline-none" placeholder="Ej: Torno CNC #5" required>
         </div>
+        
         <div>
-            <label class="block text-sm font-bold text-gray-700">Descripción</label>
-            <textarea name="descripcion" class="w-full p-2 border rounded"></textarea>
+            <label class="block text-sm font-bold text-gray-700 mb-1">Código Único (4 dígitos)</label>
+            <input type="text" name="codigo" maxlength="4" pattern="\d{4}" placeholder="Ej: 1001" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-200 outline-none text-center tracking-widest font-mono text-lg" required>
         </div>
-        <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700">
-            Guardar y Generar QR
+        
+        <div>
+            <label class="block text-sm font-bold text-gray-700 mb-1">Descripción Técnica</label>
+            <textarea name="descripcion" rows="3" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-200 outline-none" placeholder="Ubicación, modelo, marca..."></textarea>
+        </div>
+        
+        <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition shadow-lg shadow-green-200">
+            <i class="fa-solid fa-save mr-2"></i> Guardar y Generar QR
         </button>
     </form>
 </div>

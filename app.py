@@ -16,29 +16,43 @@ db = SQLAlchemy(app)
 class Maquina(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
-    codigo = db.Column(db.String(4), unique=True, nullable=False) # El código de 4 dígitos
+    codigo = db.Column(db.String(4), unique=True, nullable=False)
     descripcion = db.Column(db.Text)
     fecha_alta = db.Column(db.DateTime, default=datetime.utcnow)
-    # Relación con fallas
     fallas = db.relationship('Falla', backref='maquina', lazy=True)
 
 class Falla(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     descripcion = db.Column(db.Text, nullable=False)
-    solucion = db.Column(db.Text, nullable=True) # Si ya se arregló
-    estado = db.Column(db.String(20), default='Pendiente') # Pendiente, En Proceso, Resuelto
+    estado = db.Column(db.String(30), default='Pendiente') # Pendiente, En Proceso, Espera Repuestos, Resuelto
     tecnico = db.Column(db.String(50))
     fecha_reporte = db.Column(db.DateTime, default=datetime.utcnow)
     maquina_id = db.Column(db.Integer, db.ForeignKey('maquina.id'), nullable=False)
+    # Relación con la bitácora de comentarios
+    comentarios = db.relationship('Comentario', backref='falla', lazy=True)
+
+class Comentario(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    texto = db.Column(db.Text, nullable=False)
+    autor = db.Column(db.String(50), nullable=True)
+    fecha = db.Column(db.DateTime, default=datetime.utcnow)
+    falla_id = db.Column(db.Integer, db.ForeignKey('falla.id'), nullable=False)
 
 # --- HELPER PARA QR ---
 def generar_qr(codigo):
-    # El QR apuntará a la URL de la máquina
-    # En local será http://127.0.0.1:5000/maquina/CODIGO
-    url_data = f"http://127.0.0.1:5000/maquina/{codigo}"
-    qr = qrcode.make(url_data)
-    ruta = os.path.join('static', 'qrcodes', f'{codigo}.png')
-    qr.save(ruta)
+    # Generamos una ruta relativa. Así funciona en localhost, ngrok o VS Code
+    # El escáner entenderá que debe ir a /maquina/CODIGO dentro del dominio actual
+    data = f"/maquina/{codigo}"
+    
+    qr = qrcode.make(data)
+    
+    # Crear carpeta si no existe
+    ruta_carpeta = os.path.join('static', 'qrcodes')
+    if not os.path.exists(ruta_carpeta):
+        os.makedirs(ruta_carpeta)
+        
+    ruta_archivo = os.path.join(ruta_carpeta, f'{codigo}.png')
+    qr.save(ruta_archivo)
 
 # --- RUTAS ---
 
@@ -61,9 +75,10 @@ def ver_maquina(codigo):
     maquina = Maquina.query.filter_by(codigo=codigo).first_or_404()
     
     if request.method == 'POST':
-        # Agregar nueva falla
+        # Reportar nueva falla
         descripcion = request.form.get('descripcion')
         tecnico = request.form.get('tecnico')
+        
         nueva_falla = Falla(descripcion=descripcion, tecnico=tecnico, maquina_id=maquina.id)
         db.session.add(nueva_falla)
         db.session.commit()
@@ -71,11 +86,23 @@ def ver_maquina(codigo):
 
     return render_template('maquina.html', maquina=maquina)
 
-@app.route('/falla/actualizar/<int:id>', methods=['POST'])
-def actualizar_falla(id):
+@app.route('/falla/comentar/<int:id>', methods=['POST'])
+def agregar_comentario(id):
     falla = Falla.query.get_or_404(id)
-    falla.solucion = request.form.get('solucion')
-    falla.estado = request.form.get('estado')
+    
+    texto_comentario = request.form.get('comentario')
+    autor = request.form.get('autor_comentario')
+    nuevo_estado = request.form.get('estado')
+
+    # 1. Guardar comentario si existe texto
+    if texto_comentario:
+        nuevo_coment = Comentario(texto=texto_comentario, autor=autor, falla_id=falla.id)
+        db.session.add(nuevo_coment)
+    
+    # 2. Actualizar estado
+    if nuevo_estado:
+        falla.estado = nuevo_estado
+
     db.session.commit()
     return redirect(url_for('ver_maquina', codigo=falla.maquina.codigo))
 
@@ -93,12 +120,7 @@ def crear_maquina():
             nueva = Maquina(nombre=nombre, codigo=codigo, descripcion=desc)
             db.session.add(nueva)
             db.session.commit()
-            
-            # Generar QR
-            if not os.path.exists(os.path.join('static', 'qrcodes')):
-                os.makedirs(os.path.join('static', 'qrcodes'))
             generar_qr(codigo)
-            
             return redirect(url_for('ver_maquina', codigo=codigo))
             
     return render_template('crear.html')
@@ -106,5 +128,5 @@ def crear_maquina():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    # Ejecutar accesible en red local con certificado SSL temporal
+    # Host 0.0.0.0 permite acceso desde la red local
     app.run(debug=True, host='0.0.0.0')
